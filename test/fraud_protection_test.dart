@@ -7,13 +7,13 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 class MockFraudProtectionPlatform
     with MockPlatformInterfaceMixin
     implements FraudProtectionPlatform {
-
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
 }
 
 void main() {
-  final FraudProtectionPlatform initialPlatform = FraudProtectionPlatform.instance;
+  final FraudProtectionPlatform initialPlatform =
+      FraudProtectionPlatform.instance;
 
   test('$MethodChannelFraudProtection is the default instance', () {
     expect(initialPlatform, isInstanceOf<MethodChannelFraudProtection>());

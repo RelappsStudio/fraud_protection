@@ -33,7 +33,6 @@ abstract class FraudProtectionPlatform extends PlatformInterface {
     );
   }
 
-
   Future<void> setHideOverlayWindows(bool shouldHideOverlayWindows) async {
     throw UnimplementedError(
       'setHideOverlayWindows() has not been implemented.',

@@ -38,7 +38,8 @@ class _MainAppScreenState extends State<MainAppScreen> {
   Future<void> _detectBlacklistedServices() async {
     bool blacklistedServicesFound =
         await FraudProtection.isAnyAccessibilityServiceBlacklisted(
-          FraudProtection.DEFAULT_ACCESSIBILITY_BLACKLIST + [], //You can use baseline blacklist and expand with your own packages. Though it is appreciated to make PR to package repo to add your package to baseline.
+          FraudProtection.DEFAULT_ACCESSIBILITY_BLACKLIST +
+              [], //You can use baseline blacklist and expand with your own packages. Though it is appreciated to make PR to package repo to add your package to baseline.
         );
 
     setState(() {

@@ -39,8 +39,7 @@ class MethodChannelFraudProtection extends FraudProtectionPlatform {
 
   @override
   Future<List<String>> getActiveAccessibilityServices() async {
-    final List<String> activeServices =
-        await methodChannel.invokeListMethod(
+    final List<String> activeServices = await methodChannel.invokeListMethod(
           'getActiveAccessibilityServices',
         ) ??
         [];
@@ -52,22 +51,15 @@ class MethodChannelFraudProtection extends FraudProtectionPlatform {
     List<String> whitelist,
   ) async {
     final bool result = await methodChannel.invokeMethod(
-      'areAllAccessibilityServicesWhitelisted', {
-        'whitelist': whitelist
-      }
-    );
+        'areAllAccessibilityServicesWhitelisted', {'whitelist': whitelist});
     return result;
   }
 
   @override
   Future<bool> isAnyAccessibilityServiceBlacklisted(
-    List<String> blacklist
-  ) async {
-   final bool result = await methodChannel.invokeMethod(
-      'isAnyAccessibilityServiceBlacklisted', {
-        'blacklist': blacklist
-      }
-    );
+      List<String> blacklist) async {
+    final bool result = await methodChannel.invokeMethod(
+        'isAnyAccessibilityServiceBlacklisted', {'blacklist': blacklist});
     return result;
   }
 }

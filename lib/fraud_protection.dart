@@ -112,7 +112,7 @@ class FraudProtection {
   /// - A touch is detected as coming from a partial overlay → reported as **partially obscured touch**.
   ///
   /// Each event is emitted as a string containing the event description and a timestamp.
-  /// 
+  ///
   /// Touch events from overlays enabled with accessibility service are not tracked by Android OS as obscured touches.
   static Stream<String> get touchEvents =>
       _touchEvents.receiveBroadcastStream().map((e) => e.toString());
