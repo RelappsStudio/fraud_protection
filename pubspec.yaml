@@ -1,6 +1,6 @@
 name: fraud_protection
 description: "Plugin to monitor and prevent fraud attempts and malicious services to interact with your app. Contribute to list of blacklisted apps to keep everyone safe."
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/RelappsStudio/fraud_protection
 repository: https://github.com/RelappsStudio/fraud_protection.git
 issue_tracker: https://github.com/RelappsStudio/fraud_protection/issues
