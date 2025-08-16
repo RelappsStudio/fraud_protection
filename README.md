@@ -27,7 +27,7 @@ This package helps developers protect their users by detecting **abusive accessi
 
 
 
-
+![alt text](example.png)
 ---
 
 ## 📖 Usage
