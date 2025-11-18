@@ -1,4 +1,6 @@
 import 'package:flutter/services.dart';
+import 'package:fraud_protection/models/call_event.dart';
+import 'package:fraud_protection/models/display_event.dart';
 import 'fraud_protection_platform_interface.dart';
 
 /// Provides access to device security and fraud protection checks.
@@ -16,6 +18,9 @@ import 'fraud_protection_platform_interface.dart';
 /// authentication, and enterprise apps.
 class FraudProtection {
   static const _touchEvents = EventChannel("fraud_protection/touches");
+  static const _displayEvents = EventChannel("fraud_protection/displays");
+  static const _callEvents = EventChannel("fraud_protection/calls");
+  static const _microphoneEvents = EventChannel("fraud_protection/microphone");
   // static const _screenshotEvents = EventChannel("fraud_protection/screenshots");
   // static const _captureEvents = EventChannel("fraud_protection/capture");
 
@@ -116,6 +121,56 @@ class FraudProtection {
   /// Touch events from overlays enabled with accessibility service are not tracked by Android OS as obscured touches.
   static Stream<String> get touchEvents =>
       _touchEvents.receiveBroadcastStream().map((e) => e.toString());
+
+  ///Stream DisplayEvents
+  ///
+  ///A [DisplayEvent] contains [DisplayEventAction] such as ADDED, REMOVED or INITIAL
+  ///
+  ///Display count only counts public displays. If a display is private
+  ///(as is for most use-cases, such as screen sharing) it will not be visible in the count
+  ///as such display is not directly exposed by the Android OS
+  ///
+  ///[Message] field shows which display was changed based on id grabbed when a new display was created in the system
+  ///Works only with IDs created when listener was active.
+  static Stream<DisplayEvent> get displayEvents =>
+      _displayEvents.receiveBroadcastStream().map((e) {
+        DisplayEventAction action = DisplayEventAction.values.firstWhere(
+            (action) =>
+                action.toString().toLowerCase().split('.')[1] ==
+                e['event'].toString().toLowerCase());
+        return DisplayEvent(
+            action: action,
+            publicDisplayCount: e['displayCount'],
+            message: e['message']);
+      });
+
+  ///Stream CallEvents
+  ///
+  ///A [CallEvent] contains raw string of [event] showing if value comes from first data allocation or from data changing during runtime
+  ///
+  ///It also contains an enum coresponding to the current state of the call
+  ///
+  ///[CallState] can be one of 4: RINGING, ACTIVE, IDLE, UNKNOWN
+  ///
+  ///States come from native TelephonyManager state integers.
+  static Stream<CallEvent> get callEvents =>
+      _callEvents.receiveBroadcastStream().map((e) {
+        CallState callState = CallState.values.firstWhere((element) =>
+            element.toString().toLowerCase().split('.')[1] ==
+            e['state'].toString().toLowerCase());
+
+        return CallEvent(event: e['event'], callState: callState);
+      });
+
+  static Stream<bool> get microphoneEvents =>
+      _microphoneEvents.receiveBroadcastStream().map((e) {
+        return e['isMicActive'];
+        // CallState callState = CallState.values.firstWhere((element) =>
+        //     element.toString().toLowerCase().split('.')[1] ==
+        //     e['state'].toString().toLowerCase());
+
+        // return CallEvent(event: e['event'], callState: callState);
+      });
 
   // TODO: Expose screenshot and capture events once implemented natively.
   // static Stream<String> get screenshotEvents =>

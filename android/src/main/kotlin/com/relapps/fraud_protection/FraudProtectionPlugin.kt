@@ -16,6 +16,13 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.Window
 import android.view.accessibility.AccessibilityManager
+import android.hardware.display.DisplayManager
+import android.media.AudioManager
+import android.media.AudioRecord
+import android.media.AudioRecordingConfiguration
+import android.telephony.TelephonyManager
+import android.telephony.TelephonyCallback
+import android.telephony.PhoneStateListener
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -24,6 +31,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.Result
+import kotlin.collections.isNotEmpty
 
 /**
  * FraudProtectionPlugin provides native Android security checks and fraud-prevention
@@ -46,17 +54,30 @@ class FraudProtectionPlugin :
     private lateinit var touchEventChannel: EventChannel
     private lateinit var screenshotEventChannel: EventChannel
     private lateinit var captureEventChannel: EventChannel
+    private lateinit var displayEventChannel: EventChannel
+    private lateinit var callEventChannel: EventChannel
+    private lateinit var micEventChannel: EventChannel
 
     // Event sinks
     private var touchEvents: EventChannel.EventSink? = null
     private var screenshotEvents: EventChannel.EventSink? = null
     private var captureEvents: EventChannel.EventSink? = null
+    private var displayEvents: EventChannel.EventSink? = null
+    private var callEvents: EventChannel.EventSink? = null
+    private var micEvents: EventChannel.EventSink? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var applicationContext: Context
     private var activityBinding: ActivityPluginBinding? = null
 
     private var screenshotObserver: ContentObserver? = null
+
+    private lateinit var displayManager: DisplayManager
+    private var displayListener: DisplayManager.DisplayListener? = null
+    private lateinit var telephonyManager: TelephonyManager
+    private var callStateListener: Any? = null
+    private var audioRecordCallback: AudioManager.AudioRecordingCallback? = null
+    private lateinit var audioManager: AudioManager
 
     // --- Flutter Plugin lifecycle ---
 
@@ -71,10 +92,23 @@ class FraudProtectionPlugin :
             EventChannel(flutterPluginBinding.binaryMessenger, "fraud_protection/screenshots")
         captureEventChannel =
             EventChannel(flutterPluginBinding.binaryMessenger, "fraud_protection/capture")
+        displayEventChannel = 
+            EventChannel(flutterPluginBinding.binaryMessenger, "fraud_protection/displays")
+        callEventChannel =
+            EventChannel(flutterPluginBinding.binaryMessenger, "fraud_protection/calls")
+        micEventChannel =
+            EventChannel(flutterPluginBinding.binaryMessenger, "fraud_protection/microphone")
+
 
         setupEventHandlers()
 
         applicationContext = flutterPluginBinding.applicationContext
+        displayManager = 
+            applicationContext.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        telephonyManager =
+            applicationContext.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+        audioManager =
+            applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -82,6 +116,7 @@ class FraudProtectionPlugin :
         touchEventChannel.setStreamHandler(null)
         screenshotEventChannel.setStreamHandler(null)
         captureEventChannel.setStreamHandler(null)
+        displayEventChannel.setStreamHandler(null)
     }
 
     // --- Event channel setup ---
@@ -117,6 +152,35 @@ class FraudProtectionPlugin :
             }
             override fun onCancel(arguments: Any?) {
                 stopObservingScreenCapture()
+            }
+        })
+
+        displayEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                displayEvents = events
+                startObservingDisplays()
+            }
+            override fun onCancel(arguments: Any?) {
+                stopObservingDisplays()
+            }
+        })
+
+        callEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                callEvents = events
+                startObservingCalls()
+            }
+            override fun onCancel(arguments: Any?) {
+                stopObservingCalls()
+            }
+        })
+        micEventChannel.setStreamHandler(object : EventChannel.StreamHandler {
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                micEvents = events
+                startObservingMicrophone()
+            }
+            override fun onCancel(arguments: Any?) {
+                stopObservingMicrophone()
             }
         })
     }
@@ -280,6 +344,234 @@ class FraudProtectionPlugin :
      */
     private fun stopObservingScreenCapture() {
         captureEvents = null
+    }
+
+
+    // --- Display observing ---
+
+    /**
+     * Starts observing display additions and removals.
+     * Immediately sends an event if multiple displays are already connected.
+     */
+    private fun startObservingDisplays() {
+        if (displayListener != null) return // Already observing
+
+        // Report initial state immediately on listen
+        val initialDisplays = displayManager.displays
+        Log.d("FraudProtection", "Displays initial: ${initialDisplays[0].displayId}")
+        if (initialDisplays.size > 1) {
+            displayEvents?.success(
+                mapOf(
+                    "event" to "initial",
+                    "displayCount" to initialDisplays.size,
+                    "message" to "Multiple displays detected on listener start."
+                )
+            )
+        }
+
+        // Create the listener
+        displayListener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) {
+                Log.d("FraudProtection", "Display added: $displayId")
+                Log.d("FraudProtection", "Display count: ${displayManager.displays}")
+                val displayCount = displayManager.displays.size
+                displayEvents?.success(
+                    mapOf(
+                        "event" to "Added",
+                        "displayCount" to displayCount,
+                        "message" to "Added display with id: $displayId",
+                    )
+                )
+            }
+
+            override fun onDisplayRemoved(displayId: Int) {
+                Log.d("FraudProtection", "Display removed: $displayId")
+                val displayCount = displayManager.displays.size
+                displayEvents?.success(
+                    mapOf(
+                        "event" to "Removed",
+                        "displayCount" to displayCount,
+                        "message" to "Removed display with id: $displayId",
+                    )
+                )
+            }
+
+            override fun onDisplayChanged(displayId: Int) {
+                // Typically not needed for fraud detection, but you could report it
+                Log.d("FraudProtection", "Display changed: $displayId")
+            }
+        }
+
+        // Register the listener on the main thread handler
+        displayManager.registerDisplayListener(displayListener, handler)
+    }
+
+    /**
+     * Stops observing display events.
+     */
+    private fun stopObservingDisplays() {
+        displayListener?.let {
+            displayManager.unregisterDisplayListener(it)
+        }
+        displayListener = null
+        displayEvents = null
+    }
+
+// --- Call observing ---
+
+    /**
+     * Converts a TelephonyManager call state into a user-friendly string.
+     */
+    private fun getCallStateString(state: Int): String {
+        return when (state) {
+            TelephonyManager.CALL_STATE_RINGING -> "RINGING"
+            TelephonyManager.CALL_STATE_OFFHOOK -> "ACTIVE"
+            TelephonyManager.CALL_STATE_IDLE -> "IDLE"
+            else -> "UNKNOWN"
+        }
+    }
+
+    /**
+     * Starts observing phone and call events.
+     */
+    private fun startObservingCalls() {
+        if (callStateListener != null) return
+
+        // 1. Report initial state
+        val initialState = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Use getCallState() on modern APIs
+            telephonyManager.callState
+        } else {
+            // On older APIs, we must rely on the listener's first report,
+            // but we can check if a call is ongoing (OFFHOOK).
+            @Suppress("DEPRECATION")
+            telephonyManager.callState
+        }
+
+        callEvents?.success(
+            mapOf(
+                "event" to "initialState",
+                "state" to getCallStateString(initialState),
+            )
+        )
+
+
+        // 2. Register the appropriate listener based on API level
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // API 31+ (Android 12+) uses TelephonyCallback
+            val callback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+                override fun onCallStateChanged(state: Int) {
+                    val stateString = getCallStateString(state)
+                    Log.d("FraudProtection", "Call State changed (TelephonyCallback): $stateString")
+                    callEvents?.success(
+                        mapOf(
+                            "event" to "callStateChange",
+                            "state" to stateString,
+                        )
+                    )
+                }
+            }
+            telephonyManager.registerTelephonyCallback(applicationContext.mainExecutor, callback)
+            callStateListener = callback
+
+        } else {
+            // API < 31 uses the deprecated PhoneStateListener
+            @Suppress("DEPRECATION")
+            val listener = object : PhoneStateListener() {
+                override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+                    val stateString = getCallStateString(state)
+                    Log.d("FraudProtection", "Call State changed (PhoneStateListener): $stateString")
+                    callEvents?.success(
+                        mapOf(
+                            "event" to "callStateChange",
+                            "state" to stateString,
+                        )
+                    )
+                }
+            }
+            @Suppress("DEPRECATION")
+            telephonyManager.listen(listener, PhoneStateListener.LISTEN_CALL_STATE)
+            callStateListener = listener
+        }
+    }
+
+    /**
+     * Stops observing phone and call events.
+     */
+    private fun stopObservingCalls() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            (callStateListener as? TelephonyCallback)?.let {
+                telephonyManager.unregisterTelephonyCallback(it)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            (callStateListener as? PhoneStateListener)?.let {
+                telephonyManager.listen(it, PhoneStateListener.LISTEN_NONE)
+            }
+        }
+        callStateListener = null
+        callEvents = null
+    }
+
+    /**
+     * Reports the current mic status to the Flutter sink.
+     * The status is considered "IN USE" if there is an active recording
+     * configuration or if our app is silenced.
+     */
+    private fun reportMicStatus(isMicActive: Boolean) {
+        val statusString = if (isMicActive) "IN_USE" else "AVAILABLE"
+        Log.d("FraudProtection", "Microphone Status: $statusString")
+        micEvents?.success(
+            mapOf(
+                "isMicActive" to isMicActive,
+            )
+        )
+    }
+
+    private fun startObservingMicrophone() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // Cannot reliably observe mic usage on older APIs without polling,
+            // which is generally discouraged for battery.
+            // You may decide to report a static "UNKNOWN" or "AVAILABLE" here.
+            reportMicStatus(false)
+            return
+        }
+
+        if (audioRecordCallback != null) return
+
+        // --- 1. Report Initial State (API 29+) ---
+        // Get all active recording configurations to see if the mic is currently in use.
+        val activeConfigs = audioManager.activeRecordingConfigurations
+        val isMicActiveInitial = activeConfigs.isNotEmpty()
+        reportMicStatus(isMicActiveInitial)
+
+
+        // --- 2. Register Callback ---
+        val callback = object : AudioManager.AudioRecordingCallback() {
+            override fun onRecordingConfigChanged(configs: MutableList<AudioRecordingConfiguration>?) {
+                super.onRecordingConfigChanged(configs)
+
+                // The mic is considered active if the list is NOT empty.
+                val isMicActive = configs?.isNotEmpty() ?: false
+                reportMicStatus(isMicActive)
+            }
+        }
+
+        // Executor is required for API 29+
+        audioManager.registerAudioRecordingCallback(callback,
+            handler
+        ) //applicationContext.mainLooper
+        audioRecordCallback = callback
+    }
+
+    private fun stopObservingMicrophone() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            audioRecordCallback?.let {
+                audioManager.unregisterAudioRecordingCallback(it)
+            }
+        }
+        audioRecordCallback = null
+        micEvents = null
     }
 
     // --- Security checks ---

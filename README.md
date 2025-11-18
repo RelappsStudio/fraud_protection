@@ -4,6 +4,20 @@ A **Flutter plugin** providing runtime security protections for Android applicat
 
 This package helps developers protect their users by detecting **abusive accessibility services**, **user touches coming through overlays** and other suspicious behaviors.
 
+This package needs 3 permissions for using all of its capabilities:
+```
+  <!-- Needed for putting the app on top of overlaying apps -->
+   <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS"/>
+   <!-- Needed for detecting ongoing calls -->
+   <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+   <!-- Needed for detecting if microphone is being used -->
+   <uses-permission android:name="android.permission.RECORD_AUDIO" />
+```
+
+If you wish to use only parts of its functionality don't forget to use `tools:node="remove"` in your manifest like so:
+```
+<uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
+```
 ---
 
 ## ✨ Features
@@ -23,7 +37,9 @@ This package helps developers protect their users by detecting **abusive accessi
 
 - **Event Streams**
   - Stream **touch events**. Monitor if your users interact with the app through a partial or full-screen overlay.
-  - Maybe more to come if I figure out screenshot & screen recording detection properly
+  - Stream **monitors added/removed.** Monitor if screen recording, mirroring or sharing started or stopped while your app is running. The display count refers to displays registered as public. As most displays register as private this number will in most cases remain around 0 or 1.
+  - Stream information about **phone calls**. Make sure your customer is not using your app while being manipulated on a call.
+  - Stream **microphone availability changes**. Most calls nowadays are over wifi, which means, they cannot be tracked as normal phone calls can. Instead **observe if microphone is currently in use by another app.** If it is, your customer might be instructed to screen-share or be in an internet call (such as messenger calls)
 
 
 
@@ -93,19 +109,59 @@ You can use pre-screened blacklist with known malware
 
 ### Event Streams
 
+Listen to touches coming through overlays
+
 ```dart
 FraudProtection.touchEvents.listen((event) {
   // Handle obscured touch event
   print("Touch event detected: $event");
 });
 ```
+Listen to display changes. 
 
+```dart
+FraudProtection.displayEvents.listen((event) {
+  // Handle display change event
+  print("Display change detected: $event");
+});
+
+//Display events come as a full model
+enum DisplayEventAction { added, removed, initial }
+
+class DisplayEvent 
+  final DisplayEventAction action;
+  final int publicDisplayCount;
+  final String message;
+
+```
+Listen to call events
+```dart
+FraudProtection.callEvents.listen((event) {
+  // Handle call event
+  isCallActiveNow = callEvent.callState == CallState.active
+  print("Call event detected: $event");
+});
+
+//Call events come as a model
+enum CallState { ringing, active, idle, unknown }
+
+class CallEvent 
+  final String event;
+  final CallState callState;
+```
+Listen to microphone events
+```dart
+FraudProtection.microphoneEvents.listen((event) {
+  // Handle microphone availability change event
+   isMicrophoneInUse = microphoneEvent;
+  print("Microphone availability change event detected: $event");
+});
+//Microphone availability come as a boolean. 
+```
 ---
 
 ## ⚠️ Limitations
 
-- **Screenshot and Screen Recording detection** are currently not exposed for usage:
-  - Android does not reliably notify apps when the screen is captured by another app.
 - This package is **Android-only**. iOS support is not currently available.
 - Accessibility whitelisting/blacklisting is best-effort; **wildcards only support prefix matches**.
 
@@ -114,7 +170,7 @@ FraudProtection.touchEvents.listen((event) {
 ## 📌 Supported Platforms
 
 - ✅ Android  
-- ❌ iOS (planned) but to my knowledge these problems don't really apply there
+- ❌ iOS (planned) but to my knowledge most of these problems don't really apply there
 
 ---
 
