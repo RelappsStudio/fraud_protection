@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
   package="com.relapps.fraud_protection">
+  <!-- Needed for putting the app on top of overlaying apps -->
    <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS"/>
+   <!-- Needed for detecting ongoing calls -->
+   <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+   <!-- Needed for detecting if microphone is being used -->
+   <uses-permission android:name="android.permission.RECORD_AUDIO" />
 </manifest>

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:fraud_protection/fraud_protection.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:fraud_protection/models/call_event.dart';
+import 'package:fraud_protection/models/display_event.dart';
 
 void main() {
   runApp(const AppLifecycleListenerExample());
@@ -31,9 +33,16 @@ class _MainAppScreenState extends State<MainAppScreen> {
   bool blacklistedSericesDetected = false;
   bool? isDeveloperModeEnabled = null;
   bool? isAdminAppPresent = null;
+  bool? isExtraDisplayAdded = false;
+  int displayAddedCount = 0;
+  bool isCallActiveNow = false;
+  bool isMicrophoneInUse = false;
   List<String>? activeAccessibilityServices = null;
 
   late StreamSubscription<String> _fraudProtectionTouchSubscription;
+  late StreamSubscription<dynamic> _fraudProtectionDisplaySubscription;
+  late StreamSubscription<dynamic> _fraudProtectionCallSubscription;
+  late StreamSubscription<dynamic> _fraudProtectionMicrophoneSubscription;
 
   Future<void> _detectBlacklistedServices() async {
     bool blacklistedServicesFound =
@@ -61,6 +70,31 @@ class _MainAppScreenState extends State<MainAppScreen> {
           overlayTapsDetected = true;
         });
       });
+      _fraudProtectionCallSubscription = FraudProtection.callEvents.listen((
+        callEvent,
+      ) {
+        setState(() {
+          isCallActiveNow = callEvent.callState == CallState.active;
+        });
+      });
+      _fraudProtectionCallSubscription = FraudProtection.microphoneEvents
+          .listen((microphoneEvent) {
+            setState(() {
+              isMicrophoneInUse = microphoneEvent;
+            });
+          });
+      _fraudProtectionDisplaySubscription = FraudProtection.displayEvents
+          .listen((displayEvent) {
+            if (displayEvent.action == DisplayEventAction.added) {
+              displayAddedCount += 1;
+            } else if (displayEvent.action == DisplayEventAction.removed &&
+                displayAddedCount > 0) {
+              displayAddedCount -= 1;
+            }
+            setState(() {
+              isExtraDisplayAdded = displayAddedCount > 0;
+            });
+          });
     }
   }
 
@@ -68,10 +102,14 @@ class _MainAppScreenState extends State<MainAppScreen> {
   void dispose() {
     super.dispose();
     _fraudProtectionTouchSubscription.cancel();
+    _fraudProtectionDisplaySubscription.cancel();
+    _fraudProtectionCallSubscription.cancel();
+    _fraudProtectionMicrophoneSubscription.cancel();
   }
 
   @override
   Widget build(BuildContext context) {
+    FraudProtection.callEvents.listen((event) {});
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -85,6 +123,10 @@ class _MainAppScreenState extends State<MainAppScreen> {
               Text(
                 'Touches through overlay detected this session = $overlayTapsDetected',
               ),
+              Text('Was new display added = $isExtraDisplayAdded'),
+              Text('Is a cellular/sim call active = $isCallActiveNow'),
+              Text('Is microphone in use = $isMicrophoneInUse'),
+
               MaterialButton(
                 elevation: 10,
                 color: Colors.teal,
