@@ -47,6 +47,13 @@ class MethodChannelFraudProtection extends FraudProtectionPlatform {
   }
 
   @override
+  Future<List<String>> getAllActiveKeyboards() async {
+    final List<String> activeKeyboards =
+        await methodChannel.invokeListMethod('getAllActiveKeyboards') ?? [];
+    return activeKeyboards;
+  }
+
+  @override
   Future<bool> areAllAccessibilityServicesWhitelisted(
     List<String> whitelist,
   ) async {

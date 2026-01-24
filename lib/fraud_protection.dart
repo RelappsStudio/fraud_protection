@@ -110,6 +110,10 @@ class FraudProtection {
     return FraudProtectionPlatform.instance.getActiveAccessibilityServices();
   }
 
+  static Future<List<String>> getAllActiveKeyboards() async {
+    return FraudProtectionPlatform.instance.getAllActiveKeyboards();
+  }
+
   /// Broadcast stream of obscured and partially obscured touch events.
   ///
   /// Events are reported when:

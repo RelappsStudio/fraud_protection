@@ -6,3 +6,5 @@
 * Added display change monitoring
 * Added phone call monitoring
 * Added microphone usage monitoring
+## 1.4.0
+* Added enabled keyboard scanning

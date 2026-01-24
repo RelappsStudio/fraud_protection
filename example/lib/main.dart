@@ -38,6 +38,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
   bool isCallActiveNow = false;
   bool isMicrophoneInUse = false;
   List<String>? activeAccessibilityServices = null;
+  List<String>? activeKeyboards = null;
 
   late StreamSubscription<String> _fraudProtectionTouchSubscription;
   late StreamSubscription<dynamic> _fraudProtectionDisplaySubscription;
@@ -113,97 +114,125 @@ class _MainAppScreenState extends State<MainAppScreen> {
     return Scaffold(
       body: SafeArea(
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: 20,
-            children: [
-              Text(
-                'Any blacklisted accessibility services enabled = $blacklistedSericesDetected',
-              ),
-              Text(
-                'Touches through overlay detected this session = $overlayTapsDetected',
-              ),
-              Text('Was new display added = $isExtraDisplayAdded'),
-              Text('Is a cellular/sim call active = $isCallActiveNow'),
-              Text('Is microphone in use = $isMicrophoneInUse'),
-
-              MaterialButton(
-                elevation: 10,
-                color: Colors.teal,
-                onPressed: () async {
-                  setState(() {
-                    isAppForcedToTop = !isAppForcedToTop;
-                  });
-                  FraudProtection.setHideOverlayWindows(isAppForcedToTop);
-                },
-                child: Text(
-                  isAppForcedToTop
-                      ? 'Allow overlays over app'
-                      : 'Force app on top of overlays',
-                ),
-              ),
-              MaterialButton(
-                elevation: 10,
-                color: Colors.teal,
-                onPressed: () async {
-                  setState(() {
-                    isObscuredTouchBlocked = !isObscuredTouchBlocked;
-                  });
-                  FraudProtection.setBlockOverlayTouches(
-                    isObscuredTouchBlocked,
-                  );
-                },
-                child: Text(
-                  isObscuredTouchBlocked
-                      ? 'Allow touches through active overlays'
-                      : 'Block touches coming through overlay',
-                ),
-              ),
-              MaterialButton(
-                elevation: 10,
-                color: Colors.teal,
-                onPressed: () async {
-                  isDeveloperModeEnabled =
-                      await FraudProtection.isDeveloperModeEnabled();
-                  isAdminAppPresent =
-                      await FraudProtection.isDeviceAdminActive();
-                  activeAccessibilityServices =
-                      await FraudProtection.getActiveAccessibilityServices();
-                  setState(() {});
-                },
-                child: Text('Gather device info'),
-              ),
-              isDeveloperModeEnabled != null
-                  ? Text('Developer mode enabled = $isDeveloperModeEnabled')
-                  : SizedBox.shrink(),
-              isAdminAppPresent != null
-                  ? Text("Admin apps located on system = $isAdminAppPresent")
-                  : SizedBox.shrink(),
-              if (activeAccessibilityServices != null) ...[
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: 20,
+              children: [
                 Text(
-                  "Found following accessibility services (empty box means none)",
+                  'Any blacklisted accessibility services enabled = $blacklistedSericesDetected',
                 ),
-                Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black, width: 2),
-                  ),
-                  child: ListView.separated(
-                    itemBuilder: (context, index) {
-                      return Text(activeAccessibilityServices![index]);
-                    },
-                    separatorBuilder: (context, index) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey, width: 0.5),
-                        ),
-                      );
-                    },
-                    itemCount: activeAccessibilityServices!.length,
+                Text(
+                  'Touches through overlay detected this session = $overlayTapsDetected',
+                ),
+                Text('Was new display added = $isExtraDisplayAdded'),
+                Text('Is a cellular/sim call active = $isCallActiveNow'),
+                Text('Is microphone in use = $isMicrophoneInUse'),
+
+                MaterialButton(
+                  elevation: 10,
+                  color: Colors.teal,
+                  onPressed: () async {
+                    setState(() {
+                      isAppForcedToTop = !isAppForcedToTop;
+                    });
+                    FraudProtection.setHideOverlayWindows(isAppForcedToTop);
+                  },
+                  child: Text(
+                    isAppForcedToTop
+                        ? 'Allow overlays over app'
+                        : 'Force app on top of overlays',
                   ),
                 ),
+                MaterialButton(
+                  elevation: 10,
+                  color: Colors.teal,
+                  onPressed: () async {
+                    setState(() {
+                      isObscuredTouchBlocked = !isObscuredTouchBlocked;
+                    });
+                    FraudProtection.setBlockOverlayTouches(
+                      isObscuredTouchBlocked,
+                    );
+                  },
+                  child: Text(
+                    isObscuredTouchBlocked
+                        ? 'Allow touches through active overlays'
+                        : 'Block touches coming through overlay',
+                  ),
+                ),
+                MaterialButton(
+                  elevation: 10,
+                  color: Colors.teal,
+                  onPressed: () async {
+                    isDeveloperModeEnabled =
+                        await FraudProtection.isDeveloperModeEnabled();
+                    isAdminAppPresent =
+                        await FraudProtection.isDeviceAdminActive();
+                    activeAccessibilityServices =
+                        await FraudProtection.getActiveAccessibilityServices();
+                    activeKeyboards =
+                        await FraudProtection.getAllActiveKeyboards();
+                    setState(() {});
+                  },
+                  child: Text('Gather device info'),
+                ),
+                isDeveloperModeEnabled != null
+                    ? Text('Developer mode enabled = $isDeveloperModeEnabled')
+                    : SizedBox.shrink(),
+                isAdminAppPresent != null
+                    ? Text("Admin apps located on system = $isAdminAppPresent")
+                    : SizedBox.shrink(),
+                if (activeAccessibilityServices != null) ...[
+                  Text(
+                    "Found following accessibility services (empty box means none)",
+                  ),
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black, width: 2),
+                    ),
+                    child: ListView.separated(
+                      itemBuilder: (context, index) {
+                        return Text(activeAccessibilityServices![index]);
+                      },
+                      separatorBuilder: (context, index) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey, width: 0.5),
+                          ),
+                        );
+                      },
+                      itemCount: activeAccessibilityServices!.length,
+                    ),
+                  ),
+                ],
+                if (activeKeyboards != null) ...[
+                  Text(
+                    "Found following enabled keyboards (empty box means none)",
+                  ),
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black, width: 2),
+                    ),
+                    child: ListView.separated(
+                      itemBuilder: (context, index) {
+                        return Text(activeKeyboards![index]);
+                      },
+                      separatorBuilder: (context, index) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey, width: 0.5),
+                          ),
+                        );
+                      },
+                      itemCount: activeKeyboards!.length,
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

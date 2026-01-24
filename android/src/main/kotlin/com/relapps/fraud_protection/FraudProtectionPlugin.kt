@@ -23,6 +23,7 @@ import android.media.AudioRecordingConfiguration
 import android.telephony.TelephonyManager
 import android.telephony.TelephonyCallback
 import android.telephony.PhoneStateListener
+import android.view.inputmethod.InputMethodManager
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -31,6 +32,7 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.Result
+import java.util.Collections.emptyList
 import kotlin.collections.isNotEmpty
 
 /**
@@ -192,6 +194,7 @@ class FraudProtectionPlugin :
             "isDeviceAdminActive" -> result.success(isDeviceAdminActive())
             "isDeveloperModeEnabled" -> result.success(isDeveloperModeEnabled())
             "getActiveAccessibilityServices" -> result.success(getActiveAccessibilityServices(applicationContext))
+            "getAllActiveKeyboards" -> result.success(getAllActiveKeyboards())
             "areAllAccessibilityServicesWhitelisted" -> {
                 val whitelist = call.argument<List<String>>("whitelist") ?: emptyList()
                 result.success(areAllAccessibilityServicesWhitelisted(whitelist))
@@ -582,17 +585,22 @@ class FraudProtectionPlugin :
      * @param context Application context.
      * @return List of enabled accessibility services.
      */
-    private fun getActiveAccessibilityServices(context: Context) : List<String> {
+    private fun getActiveAccessibilityServices(context: Context): List<String> {
         val accessibilityManager =
             context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+
         val enabledServices =
             accessibilityManager.getEnabledAccessibilityServiceList(FEEDBACK_ALL_MASK)
-        var activeServicesFound = emptyList<String>()
+
+        val activeServicesFound = mutableListOf<String>()
+
         for (serviceInfo in enabledServices) {
-            activeServicesFound += serviceInfo.id
+            activeServicesFound.add(serviceInfo.id)
         }
+
         return activeServicesFound
     }
+
 
     /**
      * Checks if all enabled accessibility services are within a whitelist.
@@ -641,6 +649,21 @@ class FraudProtectionPlugin :
             applicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         val admins = dpm.activeAdmins
         return !admins.isNullOrEmpty()
+    }
+
+    /**
+    Getting all active keyboards
+
+     after getting a response which is just a string we separate items related to each other and return them as list
+     **/
+    private fun getAllActiveKeyboards(): List<String> {
+        val imm =
+            applicationContext.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+
+        val enabledMethods = imm.enabledInputMethodList
+        return enabledMethods.map { info ->
+            "${info.packageName}:${info.id}"
+        }
     }
 
     /**

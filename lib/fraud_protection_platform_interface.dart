@@ -51,6 +51,12 @@ abstract class FraudProtectionPlatform extends PlatformInterface {
     );
   }
 
+  Future<List<String>> getAllActiveKeyboards() async {
+    throw UnimplementedError(
+      'getAllActiveKeyboards() has not been implemented.',
+    );
+  }
+
   Future<bool> areAllAccessibilityServicesWhitelisted(
     List<String> whitelist,
   ) async {
